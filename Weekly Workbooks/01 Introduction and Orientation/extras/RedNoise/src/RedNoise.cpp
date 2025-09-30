@@ -45,6 +45,12 @@ std::vector<std::vector<glm::vec3>> colourInterpolation2D() {
 	return canvas;
 }
 
+// we have convertToBarycentricCoordinates() : x, y -> u, v, w
+// we want a function, barycentricToRGB(): u, v, w -> r, g, b
+glm::vec3 barycentricToRGB(glm::vec3 pos) {
+	return pos * float(255);
+}
+
 void draw(DrawingWindow &window) {
 	window.clearPixels();
 	// we want to "standardise"/scale the values of 0-256 to the size of the window
@@ -56,7 +62,7 @@ void draw(DrawingWindow &window) {
 	// rgb min = 0
 	// formula rgb = 319 / (319-0) * 255
 
-	std::vector<std::vector<glm::vec3>> canvas = colourInterpolation2D();
+	// std::vector<std::vector<glm::vec3>> canvas = colourInterpolation2D();
 	for (size_t y = 0; y < window.height; y++) {
 		for (size_t x = 0; x < window.width; x++) {
 			// RED NOISE
@@ -70,9 +76,23 @@ void draw(DrawingWindow &window) {
 			// float blue = (window.width-x-1) * 255 / 319;
 
 			// 2D COLOUR INTERPOLATION
-			float red = canvas[y][x].x;
-			float green = canvas[y][x].y;
-			float blue = canvas[y][x].z;
+			// float red = canvas[y][x].x;
+			// float green = canvas[y][x].y;
+			// float blue = canvas[y][x].z;
+
+			// BARYCENTRIC TRIANGULAR INTERPOLATION
+			glm::vec2 v0(0, HEIGHT), v1(WIDTH/2, 0),v2(WIDTH, HEIGHT);
+			glm::vec3 pixelColour = barycentricToRGB(convertToBarycentricCoordinates(v0, v1, v2, glm::vec2(x,y)));
+			float minVal = std::min({pixelColour.x, pixelColour.y, pixelColour.z});
+
+			float red = 0;
+			float green = 0;
+			float blue = 0;
+			if (minVal >= 0) {
+				red = pixelColour.x;
+				green = pixelColour.y;
+				blue = pixelColour.z;
+			}
 
 			uint32_t colour = (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
 			window.setPixelColour(x, y, colour);
