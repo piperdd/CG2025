@@ -1,5 +1,5 @@
 ## Pixels and Interpolation
-### <a href="https://www.ole.bris.ac.uk/ultra/courses/_264217_1/outline/lti/launchFrame?toolHref=https:~2F~2Fwww.ole.bris.ac.uk~2Fwebapps~2Fblackboard~2Fexecute~2Fblti~2FlaunchPlacement%3Fblti_placement_id%3D_3169_1%26content_id%3D_9459326_1%26course_id%3D_264217_1%26wrapped%3Dtrue%26from_ultra%3Dtrue&toolTitle=Re~2FPlay%20Collections" target="_blank"> Weekly Briefing ![](../../resources/icons/briefing.png) </a>
+### <a href="https://www.ole.bris.ac.uk/ultra/courses/_264165_1/outline/lti/launchFrame?toolHref=https:~2F~2Fwww.ole.bris.ac.uk~2Fwebapps~2Fblackboard~2Fexecute~2Fblti~2FlaunchPlacement%3Fblti_placement_id%3D_3169_1%26content_id%3D_9457038_1%26course_id%3D_264165_1%26wrapped%3Dtrue%26from_ultra%3Dtrue&toolTitle=Re~2FPlay%20Collections" target="_blank"> Weekly Briefing ![](../../resources/icons/briefing.png) </a>
 ### Task 1: Introduction
 
 
