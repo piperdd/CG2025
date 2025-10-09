@@ -60,6 +60,11 @@ void line(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour
 	float xDiff = (to.x-from.x);
 	float yDiff = (to.y-from.y);
 	float numSteps = std::max(abs(xDiff), abs(yDiff));
+	if (numSteps == 0) {
+		uint32_t uintColour = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+		window.setPixelColour(round(from.x), round(from.y), uintColour);
+		return;
+	}
 	float xStepSize = xDiff/numSteps;
 	float yStepSize = yDiff/numSteps;
 	// repeated addition instead of multiplication (out of bounds)
@@ -81,22 +86,92 @@ void line(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour colour
 
 }
 
-void triangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour, int type = STROKED) {
+void drawStrokedTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
 	line(window, triangle.v0(), triangle.v1(), colour);
 	line(window, triangle.v1(), triangle.v2(), colour);
 	line(window, triangle.v2(), triangle.v0(), colour);
 }
 
-void randomTriangle (DrawingWindow &window, int type = STROKED) {
-	Colour randColour = Colour(rand() % 256, rand() % 256, rand() % 256);
+Colour randomColour() {
+	return Colour(rand() % 256, rand() % 256, rand() % 256);
+}
+
+CanvasTriangle randomTriangle () {
 	CanvasPoint v0 = CanvasPoint(rand() % WIDTH, rand() % HEIGHT);
 	CanvasPoint v1 = CanvasPoint(rand() % WIDTH, rand() % HEIGHT);
 	CanvasPoint v2 = CanvasPoint(rand() % WIDTH, rand() % HEIGHT);
-	CanvasTriangle randTriangle = CanvasTriangle(v0, v1, v2);
-	triangle(window, randTriangle, randColour);
+	return CanvasTriangle(v0, v1, v2);
 }
 
+CanvasPoint pointOnLineY(float y, CanvasPoint p1, CanvasPoint p2) {
+	float proportion = (y - p1.y) / (p2.y - p1.y);
+	float x = proportion * (p2.x - p1.x) + p1.x;
+	return CanvasPoint(x, y);
+}
 
+std::vector<CanvasTriangle> splitTriangle(CanvasTriangle triangle) {
+	CanvasTriangle top, bottom;
+	std::vector<CanvasPoint> points = {triangle.v0(), triangle.v1(), triangle.v2()};
+	std::sort(points.begin(),points.end(),
+		[](CanvasPoint p1, CanvasPoint p2) {
+		return (p1.y < p2.y);
+	});
+	// for each y from p1.y to p2.y, we want to print a line
+	// the line goes from proportionalPoint(yVal, p1, p2) to proportionalPoint(yVal, p1, p3)
+	// proportionalPoint(Y, p1, p2) returns a point(X,Y) on a line
+
+	CanvasPoint newPoint = pointOnLineY(points[1].y, points[0], points[2]);
+
+	top.v0() = points[0];
+	top.v1() = points[1];
+	top.v2() = newPoint;
+
+	bottom.v0() = points[1];
+	bottom.v1() = newPoint;
+	bottom.v2() = points[2];
+
+	return {top, bottom};
+}
+
+int getHeight(CanvasTriangle triangle) {
+	return std::max({triangle.v0().y, triangle.v1().y, triangle.v2().y}) - std::min({triangle.v0().y, triangle.v1().y, triangle.v2().y});
+}
+
+void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour) {
+	std::vector<CanvasTriangle> triangleSegments = splitTriangle(triangle);
+	CanvasTriangle topTriangle = triangleSegments[0];
+	int height = getHeight(topTriangle);
+	// std::cout << height << std::endl;
+	// std::cout << triangleSegment.v0() << std::endl;
+	for (int i = 0; i < height; i++) {
+		int yVal = topTriangle.v0().y + i;
+		CanvasPoint p1 = pointOnLineY(yVal, topTriangle.v0(), topTriangle.v1());
+		CanvasPoint p2 = pointOnLineY(yVal, topTriangle.v0(), topTriangle.v2());
+		line(window,p1,p2,colour);
+	}
+
+	CanvasTriangle bottomTriangle = triangleSegments[1];
+	height = getHeight(bottomTriangle);
+	for (int i = 0; i < height; i++) {
+		int yVal = bottomTriangle.v0().y + i;
+		CanvasPoint p1 = pointOnLineY(yVal, bottomTriangle.v2(), bottomTriangle.v1());
+		CanvasPoint p2 = pointOnLineY(yVal, bottomTriangle.v2(), bottomTriangle.v0());
+		line(window,p1,p2,colour);
+	}
+
+	Colour white = Colour(255,255,255);
+	drawStrokedTriangle(window, triangle, white);
+}
+
+void drawRandomTriangle(DrawingWindow &window, int type = STROKED) {
+	Colour randColour = randomColour();
+		CanvasTriangle randTriangle = randomTriangle();
+	if (type == STROKED) {
+		drawStrokedTriangle(window, randTriangle, randColour);
+	}else {
+		drawFilledTriangle(window, randTriangle, randColour);
+	}
+}
 
 void draw(DrawingWindow &window) {
 	// window.clearPixels();
@@ -122,7 +197,8 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 		else if (event.key.keysym.sym == SDLK_RIGHT) std::cout << "RIGHT" << std::endl;
 		else if (event.key.keysym.sym == SDLK_UP) std::cout << "UP" << std::endl;
 		else if (event.key.keysym.sym == SDLK_DOWN) std::cout << "DOWN" << std::endl;
-		else if (event.key.keysym.sym == SDLK_u) randomTriangle(window);
+		else if (event.key.keysym.sym == SDLK_u) drawRandomTriangle(window);
+		else if (event.key.keysym.sym == SDLK_f) drawRandomTriangle(window, FILLED);
 	} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 		window.savePPM("output.ppm");
 		window.saveBMP("output.bmp");
