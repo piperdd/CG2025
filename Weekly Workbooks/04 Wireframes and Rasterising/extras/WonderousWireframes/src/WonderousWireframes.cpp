@@ -6,6 +6,7 @@
 #include <fstream>
 #include <vector>
 
+#include "ModelTriangle.h"
 #include "TextureMap.h"
 
 #define WIDTH 320
@@ -136,17 +137,6 @@ void drawStrokedTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour 
 	line(window, triangle.v2(), triangle.v0(), colour);
 }
 
-Colour randomColour() {
-	return Colour(rand() % 256, rand() % 256, rand() % 256);
-}
-
-CanvasTriangle randomTriangle () {
-	CanvasPoint v0 = CanvasPoint(rand() % WIDTH, rand() % HEIGHT);
-	CanvasPoint v1 = CanvasPoint(rand() % WIDTH, rand() % HEIGHT);
-	CanvasPoint v2 = CanvasPoint(rand() % WIDTH, rand() % HEIGHT);
-	return CanvasTriangle(v0, v1, v2);
-}
-
 CanvasPoint pointOnLineY(float y, CanvasPoint p1, CanvasPoint p2) {
 	float proportion = (y - p1.y) / (p2.y - p1.y);
 	float x = proportion * (p2.x - p1.x) + p1.x;
@@ -213,16 +203,6 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 	drawStrokedTriangle(window, triangle, white);
 }
 
-void drawRandomTriangle(DrawingWindow &window, int type = STROKED) {
-	Colour randColour = randomColour();
-		CanvasTriangle randTriangle = randomTriangle();
-	if (type == STROKED) {
-		drawStrokedTriangle(window, randTriangle, randColour);
-	}else {
-		drawFilledTriangle(window, randTriangle, randColour);
-	}
-}
-
 std::vector<std::vector<uint32_t>> loadTexture(std::string filename) {
 	TextureMap textureMap = TextureMap(filename);
 	int tMapHeight = textureMap.height;
@@ -274,33 +254,77 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 		else if (event.key.keysym.sym == SDLK_RIGHT) std::cout << "RIGHT" << std::endl;
 		else if (event.key.keysym.sym == SDLK_UP) std::cout << "UP" << std::endl;
 		else if (event.key.keysym.sym == SDLK_DOWN) std::cout << "DOWN" << std::endl;
-		else if (event.key.keysym.sym == SDLK_u) drawRandomTriangle(window);
-		else if (event.key.keysym.sym == SDLK_f) drawRandomTriangle(window, FILLED);
 	} else if (event.type == SDL_MOUSEBUTTONDOWN) {
 		window.savePPM("output.ppm");
 		window.saveBMP("output.bmp");
 	}
 }
 
+std::unordered_map<std::string,Colour> parseMaterialFile(std::string filename) {
+	std::ifstream MTL(filename);
+	std::string line, currColour;
+	std::unordered_map<std::string,Colour> colourMap;
+
+	while (getline(MTL, line)) {
+		std::vector<std::string> splitted = split(line, ' ');
+		if (splitted[0] == "newmtl") {
+			currColour = splitted[1];
+			continue;
+		}
+		if (splitted[0] == "Kd") {
+			int r = std::stof(splitted[1]) * 255;
+			int g = std::stof(splitted[2]) * 255;
+			int b = std::stof(splitted[3]) * 255;
+			colourMap[currColour] = Colour(r,g,b);
+		}
+	}
+	return colourMap;
+}
+
+std::vector<ModelTriangle> parseObj(std::string filename, std::unordered_map<std::string,Colour> colourMap) {
+	std::ifstream Obj(filename);
+	std::string line;
+	std::vector<ModelTriangle> modelTriangles;
+	Colour currColour;
+	std::vector<glm::vec3> vertices;
+
+	while (getline(Obj, line)) {
+		std::vector<std::string> splitted = split(line, ' ');
+		std::string prefix = splitted[0];
+		if (prefix == "usemtl") {
+			currColour = colourMap[splitted[1]];
+			continue;
+		}
+		if (prefix == "v") {
+			float x = std::stof(splitted[1]);
+			float y = std::stof(splitted[2]);
+			float z = std::stof(splitted[3]);
+			glm::vec3 vertex = glm::vec3(x,y,z);
+			vertices.push_back(vertex);
+			continue;
+		}
+		if (prefix == "f") {
+			int index0, index1, index2;
+			index0 = stoi(splitted[1]);
+			index1 = stoi(splitted[2]);
+			index2 = stoi(splitted[3]);
+			ModelTriangle modelTriangle = ModelTriangle(vertices[index0-1], vertices[index1-1], vertices[index2-1], currColour);
+			std::cout << modelTriangle.colour << "\n" << modelTriangle << std::endl;
+		}
+	}
+	Obj.close();
+	return {};
+}
+
 int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 	SDL_Event event;
-	std::vector<std::vector<uint32_t>> texture = loadTexture("texture.ppm");
-
-	CanvasPoint v0 = CanvasPoint(160,10);
-	CanvasPoint v1 = CanvasPoint(300,230);
-	CanvasPoint v2 = CanvasPoint(10,150);
-	v0.texturePoint = TexturePoint(195,5);
-	v1.texturePoint = TexturePoint(395,380);
-	v2.texturePoint = TexturePoint(65,330);
-
-	CanvasTriangle canvasTriangle = CanvasTriangle(v0,v1,v2);
-
-	drawTexturedTriangle(window, canvasTriangle, texture);
-	while (true) {
-		// We MUST poll for events - otherwise the window will freeze !
-		if (window.pollForInputEvents(event)) handleEvent(event, window);
-		// Need to render the frame at the end, or nothing actually gets shown on the screen !
-		window.renderFrame();
-	}
+	std::unordered_map<std::string,Colour> colourMap = parseMaterialFile("models/cornell-box.mtl");
+	std::vector<ModelTriangle> obj = parseObj("models/cornell-box.obj", colourMap);
+	// while (true) {
+	// 	// We MUST poll for events - otherwise the window will freeze !
+	// 	if (window.pollForInputEvents(event)) handleEvent(event, window);
+	// 	// Need to render the frame at the end, or nothing actually gets shown on the screen !
+	// 	window.renderFrame();
+	// }
 }
